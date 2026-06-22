@@ -26,6 +26,9 @@ if user_q:
         st.write(user_q)
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
-            answer = ask(qa_chain, user_q)
+            try:
+                answer = ask(qa_chain, user_q)
+            except Exception as e:
+                answer = f"⚠️ Error talking to the model: {e}"
         st.write(answer)
     st.session_state.messages.append({"role": "assistant", "content": answer})
