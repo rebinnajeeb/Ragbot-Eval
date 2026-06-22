@@ -8,3 +8,4 @@ pinecone
 langchain-anthropic
 sentence-transformers
 pypdf
+deepeval
