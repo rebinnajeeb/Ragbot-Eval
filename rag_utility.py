@@ -2,7 +2,7 @@ import os
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_chroma import Chroma
+from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_groq import ChatGroq
 from langchain_classic.chains import RetrievalQA
 from langchain_core.prompts import PromptTemplate
@@ -22,7 +22,7 @@ def build_qa_chain(groq_api_key: str):
 
     # 3. Turn chunks into vectors + store them (in memory)
     embedding = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    vector_store = Chroma.from_documents(documents=chunks, embedding=embedding)
+    vector_store = InMemoryVectorStore.from_documents(documents=chunks, embedding=embedding)
     retriever = vector_store.as_retriever(search_kwargs={"k": 3})
 
     # 4. The LLM (Groq)
