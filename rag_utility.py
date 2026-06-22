@@ -5,7 +5,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_pinecone import PineconeVectorStore
 from pinecone import Pinecone, ServerlessSpec
-from langchain_groq import ChatGroq
+from langchain_anthropic import ChatAnthropic
 from langchain_classic.chains import RetrievalQA
 from langchain_core.prompts import PromptTemplate
 
@@ -13,8 +13,8 @@ RESUME_PDF = "Muhammed_Rebin_Najeeb_Resume.pdf"   # your resume file
 INDEX_NAME = "resume-rag"                          # Pinecone index (auto-created)
 
 
-def build_qa_chain(groq_api_key: str, pinecone_api_key: str):
-    os.environ["GROQ_API_KEY"] = groq_api_key
+def build_qa_chain(anthropic_api_key: str, pinecone_api_key: str):
+    os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
     os.environ["PINECONE_API_KEY"] = pinecone_api_key
 
     # 1. Load the resume PDF
@@ -48,8 +48,8 @@ def build_qa_chain(groq_api_key: str, pinecone_api_key: str):
 
     retriever = vector_store.as_retriever(search_kwargs={"k": 3})
 
-    # 4. The LLM (Groq)
-    llm = ChatGroq(model="openai/gpt-oss-20b", temperature=0.0)
+    # 4. The LLM (Claude)
+    llm = ChatAnthropic(model="claude-sonnet-4-6", temperature=0.0, max_tokens=1024)
 
     # 5. The rule: answer ONLY from the resume, else refuse
     prompt = PromptTemplate(
