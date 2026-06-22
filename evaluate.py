@@ -1,55 +1,63 @@
-import re
+import os
 from rag_utility import build_qa_chain, ask
-from langchain_anthropic import ChatAnthropic
+from deepeval.models import AnthropicModel
+from deepeval.metrics import GEval
+from deepeval.test_case import LLMTestCase, LLMTestCaseParams
 
-ANTHROPIC_API_KEY = "sk-ant-your-real-key-here"   # same key as your bot
-PINECONE_API_KEY = "pcsk_your_real_key_here"      # same Pinecone key as your bot
+ANTHROPIC_API_KEY = "sk-ant-your-real-key-here"
+PINECONE_API_KEY = "pcsk_your_real_key_here"
 
-# --- Load the RAG (the "student") + the Judge (the "teacher") ---
+# DeepEval's judge reads the key from the environment
+os.environ["ANTHROPIC_API_KEY"] = ANTHROPIC_API_KEY
+
+# 1. Build the RAG bot (the STUDENT)
 qa_chain = build_qa_chain(ANTHROPIC_API_KEY, PINECONE_API_KEY)
-judge_llm = ChatAnthropic(model="claude-sonnet-4-6", temperature=0.0, max_tokens=1024)
 
-# --- Golden dataset: questions + the CORRECT answers (the answer key) ---
+# 2. The JUDGE = Claude, wrapped in DeepEval's AnthropicModel
+judge = AnthropicModel(model="claude-sonnet-4-6", temperature=0)
+
+# 3. The metric: Correctness, scored by G-Eval (LLM-as-a-judge with a criteria)
+correctness = GEval(
+    name="Correctness",
+    criteria="Determine if the 'actual output' is factually correct and complete "
+             "based on the 'expected output'.",
+    evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
+    model=judge,
+    threshold=0.5,
+)
+
+# 4. Golden dataset: questions + correct answers (keep it small: 3-4)
 golden_dataset = [
     {"question": "What is Muhammed's current job role?",
-     "ground_truth": "QA Automation Engineer at Cognizant Technology Solutions."},
+     "expected": "QA Automation Engineer at Cognizant Technology Solutions."},
     {"question": "Which certification does he hold?",
-     "ground_truth": "Anthropic Claude Certified Architect."},
+     "expected": "Anthropic Claude Certified Architect."},
     {"question": "Name one AI project he built.",
-     "ground_truth": "The AI Mock Interview Coach (FastAPI + Streamlit + Claude + Docker)."},
+     "expected": "The AI Mock Interview Coach (FastAPI + Streamlit + Claude + Docker)."},
 ]
 
-def extract_score(text):
-    m = re.search(r"[1-5]", text)
-    return int(m.group()) if m else None
-
-def judge_correctness(question, reference, ai_answer):
-    grading_prompt = f"""You are a strict grader.
-Compare the AI Answer to the Reference Answer for the question.
-Score how CORRECT and complete the AI Answer is, from 1 (wrong) to 5 (perfect).
-Reply with ONLY a single number from 1 to 5.
-
-Question: {question}
-Reference Answer: {reference}
-AI Answer: {ai_answer}
-
-Score (1-5):"""
-    reply = judge_llm.invoke(grading_prompt)
-    return extract_score(reply.content)
-
-results = []
+# 5. Run RAG -> build a test case -> let DeepEval grade it
+print("Running DeepEval...\n")
+scores = []
 for item in golden_dataset:
-    answer = ask(qa_chain, item["question"])
-    score = judge_correctness(item["question"], item["ground_truth"], answer)
-    results.append({**item, "rag_answer": answer, "score": score})
-    print("Q:  ", item["question"])
-    print("RAG:", answer)
-    print("Score:", score, "/5")
+    rag_answer = ask(qa_chain, item["question"])
+
+    test_case = LLMTestCase(
+        input=item["question"],
+        actual_output=rag_answer,
+        expected_output=item["expected"],
+    )
+
+    correctness.measure(test_case)          # DeepEval scores it (0.0 - 1.0)
+    scores.append(correctness.score)
+
+    print("Q:     ", item["question"])
+    print("RAG:   ", rag_answer)
+    print(f"Score:  {correctness.score:.2f}  (pass >= 0.5)")
+    print("Reason:", correctness.reason)    # ← DeepEval EXPLAINS the score!
     print("-" * 70)
 
-scores = [r["score"] for r in results if r["score"] is not None]
+# 6. Scorecard
 average = sum(scores) / len(scores)
 print("\n=== SCORECARD ===")
-for r in results:
-    print(f"{r['score']}/5 : {r['question']}")
-print(f"\n⭐ Average correctness: {average:.2f} / 5")
+print(f"⭐ Average correctness: {average:.2f} / 1.00")
