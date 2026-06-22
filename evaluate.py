@@ -7,7 +7,7 @@ PINECONE_API_KEY = "pcsk_your_real_key_here"     # same Pinecone key as your bot
 
 # --- Load the RAG (the "student") + the Judge (the "teacher") ---
 qa_chain = build_qa_chain(GROQ_API_KEY, PINECONE_API_KEY)
-judge_llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.0)
+judge_llm = ChatGroq(model="openai/gpt-oss-20b", temperature=0.0)
 
 # --- Golden dataset: questions + the CORRECT answers (the answer key) ---
 golden_dataset = [

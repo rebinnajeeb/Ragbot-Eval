@@ -49,7 +49,7 @@ def build_qa_chain(groq_api_key: str, pinecone_api_key: str):
     retriever = vector_store.as_retriever(search_kwargs={"k": 3})
 
     # 4. The LLM (Groq)
-    llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.0)
+    llm = ChatGroq(model="openai/gpt-oss-20b", temperature=0.0)
 
     # 5. The rule: answer ONLY from the resume, else refuse
     prompt = PromptTemplate(
