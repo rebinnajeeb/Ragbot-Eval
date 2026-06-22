@@ -1,17 +1,21 @@
 import os
+import time
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_core.vectorstores import InMemoryVectorStore
+from langchain_pinecone import PineconeVectorStore
+from pinecone import Pinecone, ServerlessSpec
 from langchain_groq import ChatGroq
 from langchain_classic.chains import RetrievalQA
 from langchain_core.prompts import PromptTemplate
 
 RESUME_PDF = "Muhammed_Rebin_Najeeb_Resume.pdf"   # your resume file
+INDEX_NAME = "resume-rag"                          # Pinecone index (auto-created)
 
 
-def build_qa_chain(groq_api_key: str):
+def build_qa_chain(groq_api_key: str, pinecone_api_key: str):
     os.environ["GROQ_API_KEY"] = groq_api_key
+    os.environ["PINECONE_API_KEY"] = pinecone_api_key
 
     # 1. Load the resume PDF
     documents = PyPDFLoader(RESUME_PDF).load()
@@ -20,9 +24,28 @@ def build_qa_chain(groq_api_key: str):
     splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=150)
     chunks = splitter.split_documents(documents)
 
-    # 3. Turn chunks into vectors + store them (in memory)
+    # 3. Turn chunks into vectors + store them in Pinecone
     embedding = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    vector_store = InMemoryVectorStore.from_documents(documents=chunks, embedding=embedding)
+
+    pc = Pinecone(api_key=pinecone_api_key)
+    if not pc.has_index(INDEX_NAME):
+        pc.create_index(
+            name=INDEX_NAME,
+            dimension=384,                # all-MiniLM-L6-v2 outputs 384-dim vectors
+            metric="cosine",
+            spec=ServerlessSpec(cloud="aws", region="us-east-1"),
+        )
+        while not pc.describe_index(INDEX_NAME).status["ready"]:
+            time.sleep(1)
+
+    # store chunks only the first time (avoids duplicates on every redeploy)
+    if pc.Index(INDEX_NAME).describe_index_stats().total_vector_count == 0:
+        vector_store = PineconeVectorStore.from_documents(
+            documents=chunks, embedding=embedding, index_name=INDEX_NAME
+        )
+    else:
+        vector_store = PineconeVectorStore(index_name=INDEX_NAME, embedding=embedding)
+
     retriever = vector_store.as_retriever(search_kwargs={"k": 3})
 
     # 4. The LLM (Groq)

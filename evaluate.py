@@ -2,10 +2,11 @@ import re
 from rag_utility import build_qa_chain, ask
 from langchain_groq import ChatGroq
 
-GROQ_API_KEY = "gsk_your_real_key_here"   # same key as your bot
+GROQ_API_KEY = "gsk_your_real_key_here"          # same key as your bot
+PINECONE_API_KEY = "pcsk_your_real_key_here"     # same Pinecone key as your bot
 
 # --- Load the RAG (the "student") + the Judge (the "teacher") ---
-qa_chain = build_qa_chain(GROQ_API_KEY)
+qa_chain = build_qa_chain(GROQ_API_KEY, PINECONE_API_KEY)
 judge_llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.0)
 
 # --- Golden dataset: questions + the CORRECT answers (the answer key) ---

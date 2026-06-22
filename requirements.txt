@@ -3,6 +3,8 @@ langchain-community
 langchain-classic
 langchain-text-splitters
 langchain-huggingface
+langchain-pinecone
+pinecone
 langchain-groq
 sentence-transformers
 pypdf

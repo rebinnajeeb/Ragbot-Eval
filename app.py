@@ -8,7 +8,7 @@ st.caption("Ask me anything about Muhammed Rebin Najeeb's resume!")
 # Build the RAG once (cached, so it doesn't rebuild on every message)
 @st.cache_resource
 def load_chain():
-    return build_qa_chain(st.secrets["GROQ_API_KEY"])
+    return build_qa_chain(st.secrets["GROQ_API_KEY"], st.secrets["PINECONE_API_KEY"])
 
 qa_chain = load_chain()
 
