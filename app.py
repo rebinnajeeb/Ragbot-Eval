@@ -5,7 +5,6 @@ st.set_page_config(page_title="Ask About Rebin", page_icon="🤖")
 st.title("🤖 Ask About Rebin")
 st.caption("Ask me anything about Muhammed Rebin Najeeb's resume!")
 
-# Build the RAG once (cached, so it doesn't rebuild on every message)
 @st.cache_resource
 def load_chain():
     return build_qa_chain(st.secrets["ANTHROPIC_API_KEY"], st.secrets["PINECONE_API_KEY"])
